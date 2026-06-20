@@ -132,6 +132,68 @@ Postman에서 수정 → Export → 레포 파일 덮어쓰기 → git commit & 
 - 컬렉션이 바뀔때 마다 위 파이프라인을 수행해야함
 - 자주 변경되지 않으면 부담이 적지만 반대면 유지보수가 힘듬
 
+### 자동화 방식
+
+수동 Export 방식은 "Postman에서 수정했는데 레포에 반영을 깜빡"하면 CI가 옛날 컬렉션으로 테스트하는 문제가 있습니다. 이를 없애는 방향이 **Postman을 단일 원본(single source of truth)으로 두고, CI가 실행할 때마다 최신 컬렉션을 직접 받아오는 것**입니다.
+
+| 방식 | 동기화 시점 | 사람 개입 | 단점 |
+|------|-------------|-----------|------|
+| 수동 Export | 사람이 export/commit 할 때 | 매번 필요 | 반영 누락 위험 |
+| Postman API 연동 | CI 실행 시점에 자동 | 불필요 | API Key 관리 필요 |
+
+### Postman API로 CI가 알아서 최신 컬렉션을 가져오기
+
+CI가 실행될 때 Postman API로 최신 컬렉션을 내려받아 그대로 Newman에 넘기는 방식입니다. 레포에 컬렉션 JSON을 커밋해 두지 않아도 됩니다.
+
+**1. 준비물**
+
+- **Postman API Key**: Postman → 우상단 프로필 → Settings → API keys 에서 발급
+- **Collection UID**: 컬렉션 → 우측 패널 또는 공유 링크에서 확인 (`uid` 형태, 예: `12345678-abcd-...`)
+
+**2. GitHub Secrets 등록**
+
+레포 Settings → Secrets and variables → Actions 에서 추가합니다.
+
+| 이름 | 값 |
+|------|-----|
+| `POSTMAN_API_KEY` | 발급받은 API Key |
+| `POSTMAN_COLLECTION_UID` | 컬렉션 UID |
+
+**3. 워크플로우에서 최신 컬렉션 실행**
+
+Newman은 Postman API URL을 직접 실행할 수 있습니다.
+
+```yaml
+      - name: Run API tests (Postman 최신 컬렉션)
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          POSTMAN_COLLECTION_UID: ${{ secrets.POSTMAN_COLLECTION_UID }}
+        run: |
+          newman run "https://api.getpostman.com/collections/${POSTMAN_COLLECTION_UID}?apikey=${POSTMAN_API_KEY}"
+```
+
+또는 먼저 파일로 내려받은 뒤 실행할 수도 있습니다. (로그/아티팩트로 남기고 싶을 때)
+
+```yaml
+      - name: Fetch latest collection
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          POSTMAN_COLLECTION_UID: ${{ secrets.POSTMAN_COLLECTION_UID }}
+        run: |
+          curl -sS -H "X-Api-Key: ${POSTMAN_API_KEY}" \
+            "https://api.getpostman.com/collections/${POSTMAN_COLLECTION_UID}" \
+            | jq '.collection' > postman/collection.json
+
+      - name: Run API tests
+        run: newman run postman/collection.json
+```
+
+> [!IMPORTANT]
+> API Key는 절대 레포에 평문으로 커밋하지 말고 반드시 GitHub Secrets로 관리하세요. URL 방식은 키가 명령줄에 노출되므로, 민감하게 다룬다면 헤더(`X-Api-Key`) 방식을 권장합니다.
+
+> [!NOTE]
+> 이 방식으로 가면 레포의 컬렉션 JSON은 더 이상 원본이 아닙니다. 버전 기록을 위해 레포에도 남기고 싶다면, 환경(environment)은 Postman API로 별도 조회해 `-e` 옵션으로 함께 넘길 수 있습니다.
+
 ---
 
 ## Documentation
