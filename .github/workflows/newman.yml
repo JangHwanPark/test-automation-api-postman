@@ -1,0 +1,42 @@
+name: API Test (Newman)
+
+# 언제 실행할지
+on:
+  # 배열에 브랜치 이름 추가시 해당 브랜치에서도 트리거됨
+  push:
+    branches: [main]
+    paths:
+      - 'postman/**'  # 컬렉션 파일이 변경될 때만 실행
+      - '.github/workflows/**'
+  # 와일드 카드 가능
+  pull_request:
+    branches:
+      - main
+      - "release/**"  # release/ 아래 전부 (release/1.0 ...2.x 등등)
+      - "feat/*"      # feat/ 바로 아래 한단계
+  # Actions 탭에서 수동 실행 버튼
+  workflow_dispatch:
+
+jobs:
+  newman-run:
+    # 리눅스 vm
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1.레포 코드 가져오기
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2.Node.js 설치 (Newman = Node기반)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3.Newman 설치
+      - name: Install Newman
+        run: npm install -g newman
+
+      # 4.컬렉션 실행
+      - name: Run API tests
+        run: newman run "postman/API Test.postman_collection.json"

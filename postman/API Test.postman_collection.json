@@ -1,0 +1,456 @@
+{
+  "info": {
+    "_postman_id": "2d785816-01f4-44a9-bf94-09b821159bc4",
+    "name": "API Test",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "27255088",
+    "_collection_link": "https://go.postman.co/collection/27255088-2d785816-01f4-44a9-bf94-09b821159bc4?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Booking",
+      "item": [
+        {
+          "name": "Get Booking",
+          "item": [
+            {
+              "name": "GetBookingIds - 전체 조회 (200)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// ── 목록 조회: 전체 예약 ID 리스트를 받고, 다음 요청용 ID를 저장한다 ──\r",
+                      "\r",
+                      "// 1. 상태코드: 정상 응답인가\r",
+                      "pm.test(\"Status code is 200\", () => {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});\r",
+                      "\r",
+                      "// 2. 성능: 응답이 너무 느리지 않은가 (회귀 감시용)\r",
+                      "pm.test(\"응답시간 500ms 이하\", () => {\r",
+                      "    pm.expect(pm.response.responseTime).to.be.below(500);\r",
+                      "});\r",
+                      "\r",
+                      "// 3. 헤더: JSON으로 내려오는가\r",
+                      "pm.test(\"Content-Type은 JSON이다\", () => {\r",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                      "});\r",
+                      "\r",
+                      "const json = pm.response.json();\r",
+                      "\r",
+                      "// 4. 형태: 비어있지 않은 배열인가\r",
+                      "pm.test(\"응답이 비어있지 않은 배열이다\", () => {\r",
+                      "    pm.expect(json).to.be.an(\"array\").that.is.not.empty;\r",
+                      "});\r",
+                      "\r",
+                      "// 5. 각 요소: bookingid(number)를 가지는가 (전수 검사)\r",
+                      "pm.test(\"모든 요소가 bookingid(number)를 가진다\", () => {\r",
+                      "    for (const item of json) {\r",
+                      "        pm.expect(item).to.have.property(\"bookingid\");\r",
+                      "        pm.expect(item.bookingid).to.be.a(\"number\");\r",
+                      "    }\r",
+                      "});\r",
+                      "\r",
+                      "// 6. 체이닝: 첫 번째 ID를 컬렉션 변수에 저장 → 아래 단건 조회가 사용\r",
+                      "//    빈 배열일 때 에러 방지를 위해 length 체크\r",
+                      "if (json.length > 0) {\r",
+                      "    pm.collectionVariables.set(\"bookingId\", json[0].bookingid);\r",
+                      "}"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/booking",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "booking"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GetBookingIds - 이름 필터, 결과 없음 (200)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// ── 네거티브: 존재하지 않는 이름으로 필터링 ──\r",
+                      "// 핵심: \"검색 결과 없음\"은 에러(404)가 아니라 정상(200) + 빈 배열이다\r",
+                      "\r",
+                      "// 1. 결과가 없어도 상태코드는 200\r",
+                      "pm.test(\"결과 없어도 상태는 200\", () => {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});\r",
+                      "\r",
+                      "// 2. 본문은 404가 아니라 빈 배열 []\r",
+                      "const json = pm.response.json();\r",
+                      "pm.test(\"결과 없으면 빈 배열을 반환한다\", () => {\r",
+                      "    pm.expect(json).to.be.an(\"array\").that.is.empty;\r",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/booking?firstname=NoSuchName999",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "booking"
+                  ],
+                  "query": [
+                    {
+                      "key": "firstname",
+                      "value": "NoSuchName999"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GetBooking - 정상 조회 (200)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// ── 단건 조회: 예약 1건의 구조와 값을 검증한다 ──\r",
+                      "const json = pm.response.json();\r",
+                      "\r",
+                      "// 1. 상태코드\r",
+                      "pm.test(\"Status 200\", () => {\r",
+                      "    pm.response.to.have.status(200);\r",
+                      "});\r",
+                      "\r",
+                      "// 2. 헤더: JSON 여부\r",
+                      "pm.test(\"Content-Type = JSON\", () => {\r",
+                      "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+                      "});\r",
+                      "\r",
+                      "// 3. 스키마: 필수 필드 존재 + 타입 + 날짜 형식(YYYY-MM-DD)까지 한 번에 검증\r",
+                      "//    required → 빠지면 실패 / properties → 타입·형식 검증\r",
+                      "pm.test(\"응답 스키마 확인\", () => {\r",
+                      "    pm.response.to.have.jsonSchema({\r",
+                      "        type: \"object\",\r",
+                      "        required: [\"firstname\", \"lastname\", \"totalprice\", \"depositpaid\", \"bookingdates\"],\r",
+                      "        properties: {\r",
+                      "            firstname:   { type: \"string\" },\r",
+                      "            lastname:    { type: \"string\" },\r",
+                      "            totalprice:  { type: \"number\" },\r",
+                      "            depositpaid: { type: \"boolean\" },\r",
+                      "            bookingdates: {\r",
+                      "                type: \"object\",\r",
+                      "                required: [\"checkin\", \"checkout\"],\r",
+                      "                properties: {\r",
+                      "                    checkin:  { type: \"string\", pattern: \"^\\\\d{4}-\\\\d{2}-\\\\d{2}$\" },\r",
+                      "                    checkout: { type: \"string\", pattern: \"^\\\\d{4}-\\\\d{2}-\\\\d{2}$\" }\r",
+                      "                }\r",
+                      "            },\r",
+                      "            additionalneeds: { type: \"string\" }   // 선택 필드 → required 제외\r",
+                      "        }\r",
+                      "    });\r",
+                      "});\r",
+                      "\r",
+                      "// 4. 값 유효성(경계값): 가격은 음수가 될 수 없음\r",
+                      "pm.test(\"totalprice는 0 이상\", () => {\r",
+                      "    pm.expect(json.totalprice).to.be.at.least(0);\r",
+                      "});\r",
+                      "\r",
+                      "// 5. 도메인 규칙: 체크인이 체크아웃보다 늦으면 안 됨\r",
+                      "//    ※ restful-booker 시드 데이터가 랜덤이라 실제로 실패할 수 있음 → 그게 백엔드 결함(버그 리포트 소재)\r",
+                      "pm.test(\"checkin이 checkout보다 늦지 않다\", () => {\r",
+                      "    const checkin = new Date(json.bookingdates.checkin);\r",
+                      "    const checkout = new Date(json.bookingdates.checkout);\r",
+                      "    pm.expect(checkin.getTime()).to.be.at.most(checkout.getTime());\r",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/booking/{{bookingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "booking",
+                    "{{bookingId}}"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GetBooking - 없는 ID (404)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// ── 네거티브: 존재하지 않는 ID ──\r",
+                      "\r",
+                      "// 1. 없는 리소스 조회는 404\r",
+                      "pm.test(\"없는 ID 조회는 404를 반환한다\", () => {\r",
+                      "    pm.response.to.have.status(404);\r",
+                      "});\r",
+                      "\r",
+                      "// 2. 안전망: 어떤 경우에도 서버가 터지면(5xx) 안 됨\r",
+                      "pm.test(\"서버 오류(5xx)는 발생하지 않는다\", () => {\r",
+                      "    pm.expect(pm.response.code).to.be.below(500);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/booking/999999999999",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "booking",
+                    "999999999999"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GetBooking - 형식 오류 (4xx)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "// ── 네거티브: 숫자가 아닌 잘못된 형식의 ID ──\r",
+                      "\r",
+                      "// 1. 잘못된 입력은 클라이언트 에러(4xx)여야 함\r",
+                      "//    ※ restful-booker가 여기서 500을 뱉으면 → \"입력 검증 부재\" 버그\r",
+                      "pm.test(\"잘못된 ID 형식은 클라이언트 에러(4xx)\", () => {\r",
+                      "    pm.expect(pm.response.code).to.be.within(400, 499);\r",
+                      "});\r",
+                      "\r",
+                      "// 2. 안전망: 서버 오류(5xx) 금지\r",
+                      "pm.test(\"서버 오류(5xx)는 발생하지 않는다\", () => {\r",
+                      "    pm.expect(pm.response.code).to.be.below(500);\r",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/booking/invalid-id-format",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "booking",
+                    "invalid-id-format"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Create Booking",
+          "item": [
+            {
+              "name": "CreateBooking - 정상 생성 (200)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": ""
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "CreateBooking - 생성 오류(필드 누락)",
+              "request": {
+                "method": "POST",
+                "header": []
+              },
+              "response": []
+            },
+            {
+              "name": "CreateBooking - 생성 오류(잘못된 타입)",
+              "request": {
+                "method": "POST",
+                "header": []
+              },
+              "response": []
+            },
+            {
+              "name": "CreateBooking - 생성 오류(잘못된 날짜 형식)",
+              "request": {
+                "method": "POST",
+                "header": []
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Update Booking",
+          "item": [
+            {
+              "name": "Booking - UpdateBooking",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": ""
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Delete Booking",
+          "item": [
+            {
+              "name": "Booking - DeleteBooking",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": ""
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Booking - PartialUpdateBooking",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{bookingId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "[POST] Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "pm.environment.set(\"token\", json.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\": \"admin\",\r\n    \"password\": \"password123\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Ping - HealthCheck",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ping",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://restful-booker.herokuapp.com"
+    },
+    {
+      "key": "tokken",
+      "value": ""
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    }
+  ]
+}
