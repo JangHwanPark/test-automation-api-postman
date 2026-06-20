@@ -6,14 +6,17 @@ on:
   push:
     branches: [main]
     paths:
-      - 'postman/**'  # 컬렉션 파일이 변경될 때만 실행
+      # 컬렉션 파일이 변경될 때만 실행
+      - 'postman/**'
       - '.github/workflows/**'
   # 와일드 카드 가능
   pull_request:
     branches:
       - main
-      - "release/**"  # release/ 아래 전부 (release/1.0 ...2.x 등등)
-      - "feat/*"      # feat/ 바로 아래 한단계
+      # release/ 아래 전부 (release/1.0 ...2.x 등등)
+      - "release/**"
+      # feat/ 바로 아래 한단계
+      - "feat/*"
   # Actions 탭에서 수동 실행 버튼
   workflow_dispatch:
 
